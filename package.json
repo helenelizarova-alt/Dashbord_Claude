@@ -1,0 +1,16 @@
+{
+  "name": "mp-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Дашборд аналитики WB + Ozon: P&L, юнит-экономика, реклама, склад, акции, Честный знак",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0"
+  }
+}

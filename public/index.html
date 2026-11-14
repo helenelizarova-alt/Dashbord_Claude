@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Аналитика WB + Ozon</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<button id="burger" aria-label="Меню">☰</button>
+<nav id="side">
+  <div class="logo">Аналитика WB + Ozon</div>
+  <div id="demoNote" class="demo-note" hidden>Часть каналов в демо-режиме: цифры выдуманные. Впишите ключи в файл .env и перезапустите сервер.</div>
+  <button class="nav on" data-v="home">Главная</button>
+  <button class="nav" data-v="dec">Центр решений <span class="cnt" id="decCnt"></span></button>
+  <button class="nav" data-v="ads">Реклама</button>
+  <button class="nav" data-v="promo">Акции</button>
+  <button class="nav" data-v="cz">Честный знак <span class="cnt" id="czCnt"></span></button>
+  <button class="nav" data-v="unit">Юнит-экономика</button>
+  <button class="nav" data-v="wh">Склад и поставки</button>
+  <button class="nav" data-v="pnl">Прибыли и убытки</button>
+  <button class="nav" data-v="tasks">Задачи</button>
+  <button class="nav" data-v="int">Интеграции</button>
+  <button class="ai-btn" id="aiOpen">✦ ИИ-ассистент</button>
+</nav>
+
+<main id="main">
+  <div class="top">
+    <h1 id="title">Главная</h1>
+    <div class="seg" id="chSeg">
+      <button data-ch="all" class="on">Все</button><button data-ch="wb">WB</button><button data-ch="ozon">Ozon</button>
+    </div>
+    <select id="period">
+      <option value="7">7 дней</option>
+      <option value="30" selected>30 дней</option>
+      <option value="90">90 дней</option>
+      <option value="month">Текущий месяц</option>
+      <option value="custom">Свой период…</option>
+    </select>
+    <span id="customDates" hidden><input type="date" id="dFrom"> — <input type="date" id="dTo"></span>
+    <input id="q" type="search" placeholder="Поиск по артикулу">
+    <button class="btn p" id="refresh">Обновить</button>
+    <span class="sync" id="sync"></span>
+  </div>
+
+  <section class="view on" id="v-home"></section>
+  <section class="view" id="v-dec"></section>
+  <section class="view" id="v-ads"></section>
+  <section class="view" id="v-promo"></section>
+  <section class="view" id="v-cz"></section>
+  <section class="view" id="v-unit"></section>
+  <section class="view" id="v-wh"></section>
+  <section class="view" id="v-pnl"></section>
+  <section class="view" id="v-tasks"></section>
+  <section class="view" id="v-int"></section>
+</main>
+
+<aside id="drawer" aria-label="ИИ-ассистент">
+  <div class="drawer-h"><b>ИИ-ассистент</b><button class="btn" id="aiClose">✕</button></div>
+  <div class="mut small">Отвечает по данным дашборда за выбранный период.</div>
+  <div id="chat"></div>
+  <div class="chips" id="chips">
+    <button class="btn">Что сделать в первую очередь?</button>
+    <button class="btn">Какие товары убыточны и почему?</button>
+    <button class="btn">Где тратим рекламу впустую?</button>
+  </div>
+  <form id="chatForm"><input id="chatIn" placeholder="Спросите про продажи, рекламу, остатки…" autocomplete="off"><button class="btn p">→</button></form>
+</aside>
+<div id="toast"></div>
+</body>
+</html>
