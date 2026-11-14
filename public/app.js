@@ -340,7 +340,7 @@ V.int = () => {
   const st = S.m.status, sy = st.sync, S2 = S.m.settings;
   const stl = (k) => { const x = sy[k]; return x ? `<span class="st ${x.status}" title="${esc(x.msg)}">${{ ok: 'подключено', partial: 'частично', error: 'ошибка', running: 'загрузка', none: 'нет ключей' }[x.status] || x.status}</span>` : '<span class="st none">нет данных</span>'; };
   const line = (name, what, k) => `<div class="li"><span><b>${name}</b><div class="mut small">${what}${sy[k]?.msg ? ' · ' + esc(sy[k].msg) : ''}${sy[k]?.at ? ' · ' + new Date(sy[k].at).toLocaleString('ru-RU') : ''}</div></span>${stl(k)}</div>`;
-  const KEY_NAMES = { wb: 'WB: статистика, цены, акции', wbAdv: 'WB: Продвижение (если отдельный)', ozClientId: 'Ozon Seller: Client-Id', ozApiKey: 'Ozon Seller: Api-Key', ozPerfClientId: 'Ozon Performance: client_id', ozPerfSecret: 'Ozon Performance: client_secret', anthropic: 'ИИ-ассистент' };
+  const tok = (k, label, ph) => `<label>${label}<input name="${k}" type="password" autocomplete="off" placeholder="${st.tokens[k] || ph}"></label>`;
   const num = (k, label) => `<label>${label}<input name="${k}" type="number" step="any" value="${esc(S2[k])}"></label>`;
   const man = st.manual;
   return `<div class="grid"><div class="col">
@@ -364,10 +364,18 @@ V.int = () => {
     ${uploadBlock('ozFin', 'Ozon — отчёт о начислениях вручную', 'Кабинет Ozon: Финансы → Начисления → Скачать Excel. Начисления разносятся по статьям (выручка, комиссия, логистика, реклама, штрафы, хранение) по названию типа начисления.', man.ozFin.length ? `● ${man.ozFin.map((r) => D(r.from) + '–' + D(r.to)).join(', ')}` : '○ не загружено', true)}
     ${uploadBlock('costs', 'Себестоимость — загрузка вручную', 'Excel или CSV с колонками «Артикул» (или «Штрихкод»/«Название») и «Себестоимость».', man.costs ? `● ${man.costs} позиций` : '○ не загружена')}
   </div><div class="col">
-    <div class="card"><h3>Ключи API <span class="mut small">${st.envLoaded ? 'файл .env найден' : '<span class="me">файл .env не найден</span>'}</span></h3>
-      ${st.keys.map((x) => `<div class="li"><span>${KEY_NAMES[x.k] || x.k}<div class="mut small"><code>${x.env}</code></div></span>${x.set ? '<span class="st ok">задан</span>' : x.k === 'wbAdv' ? '<span class="st none">берётся WB_TOKEN</span>' : '<span class="st none">не задан</span>'}</div>`).join('')}
-      <p class="mut small">Ключи хранятся в файле <code>.env</code> в папке проекта (образец — <code>.env.example</code>). После изменения .env перезапустите сервер, синхронизация начнётся сама.</p>
-    </div>
+    <form class="card" id="tokForm"><h3>Ключи API <span class="mut small">хранятся только на сервере</span></h3>
+      <div class="fgrid">
+        ${tok('wb', 'WB токен (Статистика, Цены, Календарь акций)', 'не задан')}
+        ${tok('wbAdv', 'WB токен «Продвижение» (если отдельный)', 'тот же, что выше')}
+        ${tok('ozClientId', 'Ozon Client-Id', 'не задан')}
+        ${tok('ozApiKey', 'Ozon Api-Key', 'не задан')}
+        ${tok('ozPerfClientId', 'Ozon Performance client_id', 'не задан')}
+        ${tok('ozPerfSecret', 'Ozon Performance client_secret', 'не задан')}
+      </div>
+      <p class="mut small">Пустое поле — оставить как есть. Чтобы удалить ключ, введите «-». После сохранения сразу запускается загрузка.</p>
+      <button class="btn p">Сохранить и синхронизировать</button>
+    </form>
     <form class="card" id="setForm"><h3>Настройки расчётов</h3>
       <div class="fgrid">
         <label>Налог<select name="taxMode"><option value="income" ${S2.taxMode === 'income' ? 'selected' : ''}>УСН доходы</option><option value="profit" ${S2.taxMode === 'profit' ? 'selected' : ''}>УСН доходы − расходы</option></select></label>
@@ -479,11 +487,14 @@ document.addEventListener('change', async (e) => {
 });
 
 document.addEventListener('submit', async (e) => {
-  const f = e.target; if (!['setForm', 'supForm', 'taskForm'].includes(f.id)) return;
+  const f = e.target; if (!['tokForm', 'setForm', 'supForm', 'taskForm'].includes(f.id)) return;
   e.preventDefault();
   const data = Object.fromEntries(new FormData(f));
   try {
-    if (f.id === 'setForm') { await J('/api/settings', { method: 'POST', body: data }); toast('Настройки сохранены'); load(); }
+    if (f.id === 'tokForm') {
+      const body = {}; for (const [k, v] of Object.entries(data)) if (v) body[k] = v === '-' ? '' : v;
+      await J('/api/tokens', { method: 'POST', body }); toast('Ключи сохранены, идёт синхронизация'); load(); pollSync();
+    } else if (f.id === 'setForm') { await J('/api/settings', { method: 'POST', body: data }); toast('Настройки сохранены'); load(); }
     else if (f.id === 'supForm') { await J('/api/supplies', { method: 'POST', body: data }); load(); }
     else if (f.id === 'taskForm') { S.tasks = await J('/api/tasks', { method: 'POST', body: data }); render(); }
   } catch (err) { toast(err.message); }

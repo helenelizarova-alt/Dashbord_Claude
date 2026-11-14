@@ -11,21 +11,20 @@ import { compute, aiContext } from './lib/calc.js';
 import { parseWbRealization, parseOzAccruals, parseWbPrices, parseCosts, parseKiz } from './lib/manual.js';
 import { askAssistant } from './lib/ai.js';
 import { today, addDays } from './lib/util.js';
-import { loadEnv, tokens, ENV_KEYS } from './lib/env.js';
 
-const envLoaded = loadEnv();
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1'; // только локально. Для доступа извне поставьте за прокси с авторизацией.
 const PUB = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
 const db = load();
 let syncing = false;
+const TOKEN_KEYS = ['wb', 'wbAdv', 'ozClientId', 'ozApiKey', 'ozPerfClientId', 'ozPerfSecret'];
 
 async function runSync() {
   if (syncing) return;
   syncing = true;
   try {
-    const t = tokens();
+    const t = db.tokens;
     if (t.wb) { setSync('wb', 'running', 'идёт загрузка…'); db.data.wb = await syncWb(t); save(); }
     if (t.ozClientId && t.ozApiKey) { setSync('ozon', 'running', 'идёт загрузка…'); db.data.ozon = await syncOzon(t); save(); }
     db.lastSync = new Date().toISOString(); save();
@@ -36,12 +35,11 @@ async function runSync() {
 setInterval(runSync, 3 * 3600e3).unref();
 
 function status() {
-  const t = tokens();
-  // во фронт уходят только имя переменной и признак «задан», без значений
-  const keys = Object.entries(ENV_KEYS).map(([k, env]) => ({ k, env, set: !!t[k] }));
+  const t = db.tokens;
+  const masked = Object.fromEntries(TOKEN_KEYS.map((k) => [k, t[k] ? '••••' + String(t[k]).slice(-4) : '']));
   const m = db.manual;
   return {
-    syncing, lastSync: db.lastSync || null, sync: db.sync, keys, envLoaded,
+    syncing, lastSync: db.lastSync || null, sync: db.sync, tokens: masked,
     manual: {
       wbFin: m.wbFin.map((r) => ({ from: r.from, to: r.to, name: r.name, rows: r.fin.length })),
       ozFin: m.ozFin.map((r) => ({ from: r.from, to: r.to, name: r.name, rows: r.fin.length })),
@@ -74,6 +72,13 @@ async function api(req, res, url) {
   }
   if (p === '/api/status') return send(200, status());
   if (p === '/api/refresh' && req.method === 'POST') { runSync(); return send(200, { started: true }); }
+  if (p === '/api/tokens' && req.method === 'POST') {
+    for (const k of TOKEN_KEYS) if (k in body) { const v = String(body[k] || '').trim(); if (v) db.tokens[k] = v; else delete db.tokens[k]; }
+    if (!db.tokens.wb) db.data.wb = null;
+    if (!db.tokens.ozClientId || !db.tokens.ozApiKey) db.data.ozon = null;
+    save(); runSync();
+    return send(200, status());
+  }
   if (p === '/api/settings' && req.method === 'POST') {
     for (const [k, v] of Object.entries(body)) if (k in DEFAULT_SETTINGS) db.settings[k] = typeof DEFAULT_SETTINGS[k] === 'number' ? Number(v) || 0 : String(v);
     save(); return send(200, db.settings);
@@ -133,12 +138,4 @@ http.createServer(async (req, res) => {
   }
 }).listen(PORT, HOST, () => console.log(`Дашборд: http://localhost:${PORT}`));
 
-// ключ убрали из .env — забываем загруженные по нему данные, канал уходит в демо/ручные отчёты
-{
-  const t = tokens();
-  if (!t.wb) db.data.wb = null;
-  if (!t.ozClientId || !t.ozApiKey) db.data.ozon = null;
-  save();
-  console.log(envLoaded ? 'Ключи прочитаны из .env' : 'Файл .env не найден — скопируйте .env.example в .env');
-  if (t.wb || (t.ozClientId && t.ozApiKey)) runSync();
-}
+if (db.tokens.wb || db.tokens.ozClientId) runSync();
